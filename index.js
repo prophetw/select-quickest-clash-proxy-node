@@ -1,4 +1,17 @@
 const axios = require("axios");
+
+const promiseAny = async(iterable) => {
+  return Promise.all(
+    [...iterable].map(promise => {
+      return new Promise((resolve, reject) =>
+        Promise.resolve(promise).then(reject, resolve)
+      );
+    })
+  ).then(
+    errors => Promise.reject(errors),
+    value => Promise.resolve(value)
+  );
+};
 const RestFulApiBaseUrl = "http://127.0.0.1:9090";
 const getAllProxies = () => {
   return axios.request({
@@ -12,24 +25,25 @@ const getCurProxyNode = async () => {
     const curProxyNode = res.data.proxies["🔰 節點選擇"].now;
     console.log(" ---- curProxyNode is: ", curProxyNode);
   }
+  process.exit(0);
 };
 const getQuickestNodeAndSetToIt = async () => {
   const res = await getAllProxies();
   // console.log('   res ', res.data.proxies['🔰 節點選擇'])
   if (res.data && res.data.proxies && res.data.proxies["🔰 節點選擇"]) {
     const allProxiesNameAry = res.data.proxies["🔰 節點選擇"].all;
-    console.log(allProxiesNameAry);
-
-    const re = await Promise.race(
-      allProxiesNameAry.map((name) => {
+    const newAry = allProxiesNameAry.filter(name=>encodeURIComponent(name)===name)
+    console.log(newAry);
+    const re = await promiseAny(
+      newAry.map((name) => {
         return axios.request({
-          url: RestFulApiBaseUrl + "/proxies/" + name + "/delay",
+          url: `${RestFulApiBaseUrl}/proxies/${name}/delay`,
           method: "get",
           params: {
-            timeout: 3000,
-            url: "https://www.google.com",
+            timeout: 10000,
+            url: "http://www.google.com",
           },
-        });
+        })
       })
     );
     if (re && re.status === 200 && re.config) {
